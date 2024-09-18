@@ -2,6 +2,7 @@ package dao
 
 import (
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	"goCommunity/model"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -26,6 +27,7 @@ func StartDataBase() error {
 }
 
 var DB *gorm.DB
+var RDB = InitRedis()
 
 func InitDB() (*gorm.DB, error) {
 	dsn := "root:Gfy20051208@tcp(127.0.0.1:3308)/community?charset=utf8mb4&parseTime=True&loc=Local"
@@ -55,10 +57,17 @@ func InitDB() (*gorm.DB, error) {
 
 	return db, nil
 }
+
 func CreatedTable() error {
 	err := DB.AutoMigrate(&model.User{})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func InitRedis() *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
 }

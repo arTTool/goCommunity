@@ -14,6 +14,7 @@ func main() {
 	}
 
 	c := gin.Default()
+	c.POST("/send/code", service.SendCode)
 	c.POST("/register", service.UserRegister)
 	c.POST("/login", service.UserLogin)
 	c.Run(":8080")

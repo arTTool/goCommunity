@@ -1,19 +1,24 @@
 package service
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
 	"goCommunity/dao"
 	"goCommunity/util"
+	"log"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 func UserRegister(c *gin.Context) {
 	email := c.PostForm("Email")
 	password := c.PostForm("Password")
-	if email == "" || password == "" {
+	code := c.PostForm("Code")
+	if email == "" || password == "" || code == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"code": "200",
-			"msg":  "请将邮箱和密码填写完整",
+			"msg":  "请将邮箱和密码,验证码填写完整",
 		})
 		return
 	}
@@ -25,9 +30,48 @@ func UserRegister(c *gin.Context) {
 		})
 		return
 	}
+	r, err := dao.RDB.Get(context.Background(), "CODE_"+email).Result()
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"code": "-1",
+			"msg":  "验证码获取存储失败(redis)",
+		})
+	}
+	if code != r {
+		c.JSON(http.StatusOK, gin.H{
+			"code": "-1",
+			"msg":  "验证码错误，请重新输入",
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"code": "200",
 		"msg":  "true",
+	})
+}
+
+func SendCode(c *gin.Context) {
+	email := c.PostForm("Email")
+	code := util.GetCode()
+	if err := dao.RDB.Set(context.Background(), "CODE_"+email, code, time.Second*60).Err(); err != nil {
+		log.Println(err)
+		c.JSON(http.StatusOK, gin.H{
+			"code": "-1",
+			"msg":  "验证码储存失败(redis)",
+		})
+		return
+	}
+	err := util.SendCode(email, code)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"code": "-1",
+			"msg":  "验证码发送失败",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"code": "200",
+		"msg":  true,
 	})
 }
 
@@ -52,7 +96,7 @@ func UserLogin(c *gin.Context) {
 		})
 		return
 	}
-	token, err := util.GetToken(user.ID, email)
+	token, err := util.GetToken(strconv.Itoa(user.ID), email)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code": -1,
